@@ -1,0 +1,7 @@
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/intrinsics_gen.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/omp_gen.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/acc_gen.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/RISCVTargetParserTableGen.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/ALL_BUILD.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/CMakeFiles/ZERO_CHECK.dir
+X:/DELTA/TestResearch/clang+llvm-18.1.5-x86_64-pc-windows-msvc/ollvm-rust/build/obfuscation/CMakeFiles/LLVMObfuscationx.dir

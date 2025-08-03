@@ -1,0 +1,17 @@
+## Example for https://github.com/Whitecat18/Rust-for-Malware-Development/blob/main/Process-Injection/inject_on_localprocess/Cargo.toml 
+
+[package]
+name = "inject_on_localprocess"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+winapi = { version = "0.3.9", features = [
+    "processthreadsapi",
+    "memoryapi",
+    "errhandlingapi",
+    "synchapi",
+    "handleapi",
+    "winbase",
+    "debugapi"
+]}

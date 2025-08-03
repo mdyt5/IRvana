@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\CryptoUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\Utils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\ObfuscationPassManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\ObfuscationOptions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\IndirectBranch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\IndirectCall.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\IndirectGlobalVariable.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\Flattening.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\StringEncryption.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\LegacyLowerSwitch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="X:\DELTA\TestResearch\clang+llvm-18.1.5-x86_64-pc-windows-msvc\ollvm-rust\ollvm-pass\obfuscation\obfuscation.def">
+      <Filter>Source Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{A3BDD8FC-A4F4-3DEA-97F8-F62E1C2044C2}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

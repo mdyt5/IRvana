@@ -1,0 +1,11 @@
+[package]
+name = "rust_mcjit"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+#llvm-sys = { version = "180" }
+#libc = "0.2"
+libloading = "0.8"   # cross-platform shared library loading
+inkwell = { version = "0.5.0", features = ["llvm18-0"] }
