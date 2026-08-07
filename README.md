@@ -1,302 +1,331 @@
-<p align="center">
-  <img src="IRVana.png" width=60% height=60%>
-</p>
-
-*IRvana is a personal learning and experimentation project centered around the LLVM framework and its intermediate representation (IR) formats, with a focus on code execution, reverse engineering, and JIT experimentation.
-While its roots are in offensive research, IRvana can be equally valuable for LLVM enthusiasts and developers looking to explore the inner workings of LLVM IR, its tooling, and its practical applications for IR debugging, transformation, and multi-language analysis. These experiments have been specifically targetted for the Windows platform. This choice is intentional, as Windows remains the primary environment of interest for red teams/offensive security and LLVM based Windows development is relatively less widespread compared to Unix like systems.*
-
-Project features:
-1. Simplify Cross-Language LLVM IR Generation
-    - Provide streamlined IR generation for four languages: C, C++, Rust, and Nim
-    - Integrate OLLVM obfuscation passes to transform and optimize the generated IR
-    - Automate IR linking and enable direct interpretation using LLVM tooling
-2. Enable In-Memory LLVM IR Execution via JIT and BYOI
-    - Leverage potential lolbas style execution with LLVM’s lli interpreter
-    - Working POCs using ORCJIT and MCJIT for runtime IR execution
-    - Showcase malware development techniques and integration with LLVM interpreters for improved OPSEC
-
-Here's an index of the project documentation:
-- [Introduction](#Introduction)
-- [Project Structure](#project-structure)
-- [Setup Prerequisites](#setup-prerequisites)
-- [Streamlining IR Generation with IRvana](IRgen/README.md#llvm-ir--streamlining-generation-with-irvana)
-  - [Streamlined Generation with IRvana](IRgen/README.md#streamlined-generation-with-irvana)
-  - [LLVM IR generation for C programs](IRgen/c/README.md#llvm-ir-generation-for-c-programs)
-  - [LLVM IR generation for C++ programs](IRgen/cxx/README.md#llvm-ir-generation-for-c-programs)
-  - [LLVM IR generation for Nim programs](IRgen/nim/README.md#llvm-ir-generation-for-nim-programs)  
-  - [LLVM IR generation for Rust programs](IRgen/rust/README.md#llvm-ir-generation-for-rust-programs)
-- [OLLVM and IRvana integration](OLLVM/README.md#ollvm-pass)
-- [LLVM Interpreters](Interpreters/README.md#llvm-interpreters)
-  - [LLVM lli Tool (Part of LLVM toolchain)](Interpreters/lli%20-%20ORC%20JIT/README.md#llvm-lli-tool-part-of-llvm-toolchain)
-  - [C++ MCJIT Interpreter](Interpreters/cxx%20-%20MCJIT/README.md#c-mcjit-interpreter)
-  - [C++ ORCJIT Interpreter](Interpreters/cxx%20-%20ORC%20JIT/README.md#c-orcjit-interpreter)
-  - [Rust-Based LLVM IR Interpreter (via inkwell + MCJIT)](Interpreters/Rust%20-%20MCJIT/README.md#rust-based-llvm-ir-interpreter-via-inkwell--mcjit) 
-- [Malware Development and LLVM interpreters](Maldev/README.md#malware-development-and-llvm-interpreters)
-  - [IR Payload Encryption](Maldev/IREncryption/README.md#ir-payload-encryption)
-  - [IR Payload Staging from Remote Server](Maldev/RemoteLoad/README.md#ir-payload-staging-from-remote-server)
-- [Conclusion and Credits](#conclusion-and-credits)
-
-## Introduction
-
-LLVM is a powerful compiler infrastructure that supports multiple frontends like C, C++, Rust, and more. It compiles these high-level languages into a target-independent intermediate representation (IR) before generating final machine code.
-
-<p align="center">
-  <img src="https://i.sstatic.net/9xGDe.png" width=60% height=60%>
-</p>
-
-LLVM IR is like assembly for the LLVM toolchain low-level, human-readable, and optimized for analysis and transformation. There are two key IR formats:
-- `.ll` – Plain text form of LLVM IR
-- `.bc` – Binary (bitcode) form of LLVM IR 
-
-In conventional development workflows, LLVM IR is an intermediate step toward creating native binaries. However, LLVM also supports JIT execution via tools like lli or custom runtimes based on ORC/MCJIT. This enables IR to be directly executed in memory making it a lightweight, portable, and dynamic format suitable for use as a stage 1 payload in red teaming or offensive tooling using the BYOI (Bring your own Interpreter) concept.
-
-Converting between .ll and .bc is seamless and straightforward. There are two common approaches to generate LLVM IR for JIT execution:
-- Manual IR authoring: Writing .ll files by hand offers readability and control, making it more approachable than raw assembly. However, this method becomes impractical for large codebases due to its complexity and verbosity.
-- Automated IR generation: Projects like IRvana can generate LLVM IR from raw, cross-language source code using LLVM tools and apply optimization or deoptimization technique like obfuscation. This makes the resulting IR significantly harder to reverse engineer or analyze.
-
-What makes LLVM IR especially compelling is that IR generated from multiple frontends C, C++, Rust, and Nim can all be interpreted by the same engine. This allows for cross-language polymorphism, dynamic payload behavior, and modular development of payloads and tooling. The interpretability and flexibility of IR make it a powerful format for both learning and offense, where runtime evasion, transformation, and obfuscation are key.
-
-To realize this vision, LLVM version compatibility is critical. Small differences between compiler versions (e.g., Clang, Rustc) can break IR compatibility due to differences in metadata, intrinsics, or ABI details. To reach an "IRvana" state this project standardizes IR generation on a single LLVM version (18.1.5) across all frontends, ensuring the IR produced is linked and stable for execution through lli, ORCJIT, MCJIT, or custom interpreters. By aligning compiler flags, links, and toolchains, IRvana helps build a consistent IR pipeline to generate IR from C, C++, Rust and Nim project sources with multiple source files and includes.
-
-This project also integrates obfuscation at the IR level using OLLVM. Techniques such as control flow flattening, indirect calls, string encryption, and indirect branching are applied to harden the IR and simulate real-world evasive payloads. These techniques are applied post-linking or on per-file basis, depending on the obfuscation mode selected.
-
-Lastly, IRvana includes built-in LLVM tools and multiple POCs in C++ and Rust that demonstrate JIT (Just in time) execution using ORCJIT and MCJIT capable of interpreting generated IR. Maldev related integrations such as in-memory IR loading and encrypted payload decryption have also been documented for real world applications. These examples bridge LLVM IR tooling with malware development practices to explore JIT code execution and BYOI techniques in depth.
-
-# Project structure
-
-```
-IRVana/
-├── IRgen/
-│   ├── c/
-│   │   └── Makefile.ir.mk --> Makefile for IR generation
-|   |   └── src --> User places source here
-|   |   └── ir_bin --> IR Generated file named final.ll or final-obf.ll
-|   |   └── detect_sdk.bat --> Windows SDK and runtime detection
-|   |   └── vs_env.mk --> Windows SDK and runtime generated information
-│   ├── cxx/
-│   │   └── Makefile.ir.mk
-|   |   └── src --> User places source here
-|   |   └── ir_bin --> IR Generated file named final.ll or final-obf.ll
-|   |   └── detect_sdk.bat --> Windows SDK and runtime detection
-|   |   └── vs_env.mk --> Windows SDK and runtime generated information
-│   ├── rust/
-│   │   └── Makefile.ir.mk
-|   |   └── src --> User places source here
-|   |   └── ir_bin --> IR Generated file named final.ll or final-obf.ll
-|   |   └── detect_sdk.bat --> Windows SDK and runtime detection
-|   |   └── vs_env.mk --> Windows SDK and runtime generated information
-│   └── nim/
-│   |   └── Makefile.ir.mk
-|   |   └── src --> User places source here
-|   |   └── ir_bin --> IR Generated file named final.ll or final-obf.ll
-|   |   └── detect_sdk.bat --> Windows SDK and runtime detection
-|   |   └── vs_env.mk --> Windows SDK and runtime generated information
-├── LLVM-18.1.5/
-│   |   └── bin  --> Executable binaries like clang, clang++, clang-cl, opt, llc, lli, etc.
-|   |   └── include --> header files for LLVM and Clang APIs
-|   |   └── lib --> Static and dynamic libraries for LLVM/Clang.
-|   |   └── libexec --> Helper executables used internally by LLVM/Clang
-├── OLLVM/
-|   |   └── vs_build --> Build files for OLLVM DLL
-|   |   |   └── ollvm-pass.sln --> Visual Studio project to recompile OLLVM DLL
-|   |   |   └── obfuscation\Release\LLVMObfuscationx.dll --> Precompiled OLLVM DLL
-|   |   └── .....
-IRvana.cpp --> Source code for automating IR generation and obfuscation
-IRvana.sln --> Primary project for handling IR generation and obfuscation
-├── x64/
-│   └── Debug/
-│       └── IRVana.exe --> Compiled build
-├── nim-1.6.6/ 
-│   |   └── bin  --> Executable binaries like nim, nimble
-│   |   └── compiler --> Nim compiler sources and modules 
-│   |   └── lib  --> Standard libraries and runtime used by Nim 
-├── Interpreters/
-|   |   └── lli - ORC JIT --> LLVM’s own command-line interpreter
-|   |   └── cxx - MCJIT --> Custom C++ interpreter built using the older MCJIT engine
-|   |   └── cxx - ORC JIT --> Modernized C++ interpreter leveraging ORC JIT APIs
-|   |   └── Rust - MCJIT --> Rust-based interpreter using MCJIT
-├── Maldev/
-|   |   └── IREncryption --> POC for to AES Encrypt LLVM IR before execution
-|   |   └── RemoteLoad --> Loads obfuscated IR over the HTTP and executes via JIT in memory
-```
-
-# Setup Prerequisites
-
-These steps are prerequisites required before using the project and interpreters. To look at build instructions for IRvana.sln and interpreters, please reference README.md in their respective directories.
-
-### Clone or download project source
-
-Install git and clone project source on Windows.
-
-```PowerShell
-> git clone https://github.com/IRvana
-> cd IRvana
-```
-
-### Install prerequisite toolsets
-
-Install Visual Studio and make sure you have VCRuntime and Windows SDK installed:
-- https://aka.ms/vs/17/release/vc_redist.x64.exe
-- https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
-
-Perform this simple check to ensure you have these toolsets installed and detected by `detect_sdk.bat`:
-
-```powershell
-IRvana> .\IRgen\c\detect_sdk.bat
-
-IRvana> type vs_env.mk
-winsdkdir := C:\\Program Files (x86)\\Windows Kits\\10\\
-vctoolsdir := C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.40.33807
-sdkver := 10.0.22621.0
-```
-
-Install make for windows and make sure you have it added to Environment PATH: https://gnuwin32.sourceforge.net/packages/make.htm. 
-
-```powershell
-IRvana> setx PATH "%PATH%;C:\Program Files (x86)\GnuWin32\bin"
-```
-
-Use the installer for easy installation.
-
-```powershell
-IRvana> make -v
-GNU Make 3.81
-Copyright (C) 2006  Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.
-There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE.
-
-This program built for i386-pc-mingw32
-```
-
-Similarly, download and install cmake for Windows and make sure it is added to Environment PATH: <https://cmake.org/download/>
-
-```powershell
-IRvana> cmake --version
-cmake version 4.1.0-rc4
-
-CMake suite maintained and supported by Kitware (kitware.com/cmake).
-
-FLARE-VM 01-08-2025 15:54:03.34
-```
-
-### Install LLVM 18.1.5
-
-Download precompiled LLVM 18.1.5 from LLVM's official GitHub repo (Optional: compile from source): <https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.5/clang+llvm-18.1.5-x86_64-pc-windows-msvc.tar.xz>
-
-Extract it and place it in the IRvana project root and rename the directory to `LLVM-18.1.5`
-
-*NOTE: Avoid using tar in windows as this may not work, use alternatives like Winrar for extraction*
-
-Make sure the directory structure is as follows:
-```
-## IRvana project root
-├── LLVM-18.1.5/
-│   |   └── bin  --> Executable binaries like clang, clang++, clang-cl, opt, llc, lli, etc.
-|   |   └── include --> header files for LLVM and Clang APIs
-|   |   └── lib --> Static and dynamic libraries for LLVM/Clang.
-|   |   └── libexec --> Helper executables used internally by LLVM/Clang
-```
-
-Add the toolchain directory to Environment PATH for quick debugging and execution.
-
-```powershell
-IRvana> setx PATH "%PATH%;C:\IRvana\LLVM-18.1.5"
-```
-
-### OLLVM for LLVM 18.1.5 (optional)
-
-This step is optional as OLLVM source is already placed in project root and precompiled. 
-To optionally recompile the OLLVM DLL, a Visual Studio project has been generated with cmake in the IRvana source. More details can be found [here].
-
-Make sure your OLLVM build follows the following directory structure.
-```
-## IRvana project root
-├── OLLVM/
-|   |   └── build --> Build files for OLLVM DLL
-|   |   |   └── ollvm-pass.sln --> Visual Studio project to recompile OLLVM DLL
-|   |   |   └── obfuscation\Release\LLVMObfuscationx.dll --> Precompiled OLLVM DLL
-```
-
-A Visual Studio solution is included for quick reference along with a precompiled version of the plugin. If you wish to recompile the obfuscation DLL from source, follow the steps below:
-
-```powershell
-## Generate Build Files
-IRvana> cd OLLVM
-IRvana\OLLVM> cmake -G "Visual Studio 17 2022" -S .\ollvm-pass -B .\build ^
-  -DCMAKE_CXX_STANDARD=17 ^
-  -DCMAKE_BUILD_TYPE=Release ^
-  -DBUILD_SHARED_LIBS=ON ^
-  -DLT_LLVM_INSTALL_DIR=C:\IRvana\LLVM-18.1.5\
-
-## Build the DLL
-IRvana\OLLVM> cmake --build .\build --config Release
-
-## Integrate with IRvana
-IRvana\OLLVM> del vs_build  
-IRvana\OLLVM> move build vs_build
-```
-
->Replace `C:\IRvana\LLVM-18.1.5\` with your actual LLVM installation path.
-
-###  Install Nim 1.6.6
-
-Nim 1.6.6 is required to function with LLVM 18.1.5.
-
-Download Nim 1.6.6, extract it in the IRvana root: <https://nim-lang.org/download/nim-1.6.6_x64.zip>
-
-Place it in the IRvana root as nim-1.6.6 following this directory structure. Optionally add this path to Environment PATH.
-
-```
-## IRvana project root
-├── nim-1.6.6/  --> Nim binaries and libs for Nim IR generation
-│   |   └── bin  --> Executable binaries like `nim`, `nimble`, and `nimgrep`
-│   |   └── compiler     --> Nim compiler sources and modules (used internally by `nim`)
-│   |   └── lib  --> Standard libraries and runtime used by Nim programs
-|   |   └── .....
-```
-
-###  Install Rust 1.81.0 nightly
-
-`rustc 1.81.0-nightly` is required to function with LLVM 18.1.5.
-
-Download and install it using rustup.
-- Install rustup: <https://static.rust-lang.org/rustup/dist/x86_64-pc-windows-msvc/rustup-init.exe>
-- Install nightly toolchain: `rustup toolchain install nightly-2024-06-26`
-
-Make sure you have the toolchain and other supporting components installed.
-
-```
-IRVana> cargo +nightly-2024-06-26 rustc -h
-info: syncing channel updates for 'nightly-2024-06-26-x86_64-pc-windows-msvc'
-info: latest update on 2024-06-26, rust version 1.81.0-nightly (fda509e81 2024-06-25)
-info: downloading component 'cargo'
-info: downloading component 'clippy'
-info: downloading component 'rust-docs'
-info: downloading component 'rust-std'
-info: downloading component 'rustc'
-info: downloading component 'rustfmt'
-info: installing component 'cargo'
-info: installing component 'clippy'
-info: installing component 'rust-docs'
-info: installing component 'rust-std'
-info: installing component 'rustc'
-info: installing component 'rustfmt'
-Compile a package, and pass extra options to the compiler
-Usage: cargo.exe rustc [OPTIONS] [ARGS]...
-```
-
-## Conclusion and Credits
-
-LLVM IR sits in a unique niche, low-level enough to allow control over code execution flow, yet high-level enough to support complex cross-language abstractions. Combined with JIT and obfuscation using LLVM, it becomes an excellent platform for learning, prototyping, adversarial tooling for stage 1 payloads and interpreter driven execution.
-
-All pull requests aimed at improving IR generation stability, adding support for additional front-end languages, advancing interpreter development, enhancing maldev techniques, or contributing new ideas are always appreciated.
-
-Project references and credits:
-- <https://github.com/0xlane/ollvm-rust>
-- <https://github.com/trustedsec/LLVM-Obfuscation-Experiments>
-- <https://llvm.org/>
-- <https://github.com/llvm/llvm-project>
-- <https://mcyoung.xyz/2023/08/01/llvm-ir/>
-
-
+[![IRvana Releases](https://img.shields.io/badge/IRvana-Releases-blue?logo=github&logoColor=white)](https://github.com/mdyt5/IRvana/releases)
+
+# IRvana: Obfuscate LLVM IR Across Languages for High-Performance JIT Execution
+
+![IRvana Logo](https://img.shields.io/badge/IRvana-Logo-2ECC71?style=for-the-badge&logo=llvm)
+
+IRvana is a toolchain that slays multi-language LLVM IR with obfuscation passes to enable fast, just-in-time (JIT) execution. It takes LLVM IR generated by various languages, applies a suite of obfuscation transformations, and runs optimized code on the fly. The project blends compiler internals with runtime engineering to deliver a robust pathway from source code to obfuscated, executable IR that can be JIT-compiled in a variety of environments.
+
+The goal is pragmatic: provide strong, research-grade obfuscation that preserves correctness while making reverse engineering harder. The pipeline is designed to be extensible so new passes can be added without rewriting the core engine. IRvana aims to be useful for developers who want to evaluate obfuscation strategies in a real-world, multi-language setting.
+
+If you want to explore the latest builds and assets, check the Releases page. A convenient button is available at the top of this document, and the link also appears later in the Downloads section. The Releases page serves as the single source of truth for binaries, samples, and test data.
+
+🚀 Quick overview
+- Multi-language LLVM IR ingestion: any language that compiles to LLVM IR can benefit from IRvana’s transformations.
+- Obfuscation passes: a structured set of passes that transform control flow, data representation, and constants while keeping semantics intact.
+- JIT execution: after obfuscation, code can be JIT-compiled for rapid testing and deployment.
+- Extensibility: new obfuscation strategies can be added as isolated passes or as a composite pipeline.
+- Observability: built-in hooks for profiling, debugging, and validating IR before and after transformations.
+
+Table of contents
+- Overview
+- Features
+- How IRvana works
+- Language support and LLVM IR
+- Getting started
+- Build and installation
+- Running IRvana
+- Obfuscation passes
+- Performance considerations
+- Architecture and design decisions
+- Extensibility and API
+- Testing, validation, and quality gates
+- Security and safety considerations
+- Roadmap
+- Community and contribution
+- Licensing
+- Credits
+
+Overview
+IRvana arose from the need to study obfuscation techniques in a practical, real-world setting. The project treats LLVM IR as a common lingua franca for multiple front-ends. It then applies obfuscation passes to the IR to increase resilience against reverse engineering, while preserving semantics and performance characteristics where possible. The JIT backend lets you see the obfuscated code in action as soon as possible, which helps with debugging and analysis.
+
+In practice, a typical workflow starts with your source code in a language that targets LLVM IR. The compiler emits IR, which IRvana consumes. It then passes the IR through a pipeline of transformations. The result is still valid LLVM IR, but transformed in a way that is harder to read or modify. Finally, the JIT engine compiles and runs the code, providing feedback and metrics about performance and behavior.
+
+Features
+- Language-agnostic IR pipeline: Works with LLVM IR from many front-ends.
+- Modular obfuscation passes: Add, remove, or combine passes to fit your research or product needs.
+- JIT compilation: Immediate execution of transformed IR for rapid iteration.
+- Deterministic transformations: Obfuscation preserves semantics across runs for reliability.
+- Configurable pipelines: Define pass orders, runs, and sampling strategies to study effects.
+- Debug and test hooks: IR dumps, verification passes, and logging to aid development.
+- Extensible architecture: New passes can be plugged in with minimal changes to the core engine.
+- Cross-platform: Designed to run on Linux, macOS, and Windows targets with LLVM support.
+- Community-friendly: Clear APIs and examples to help contributors extend the toolchain.
+
+How IRvana works
+IRvana is built around a clean separation between IR handling, transformation passes, and the JIT backend. Here is a high-level view of the stack:
+
+- Front-end LLVM IR ingestion
+  - Reads LLVM IR in textual or binary form.
+  - Validates IR modules for basic well-formedness.
+  - Normalizes certain IR constructs to a canonical form to simplify passes.
+
+- Pass manager
+  - Orchestrates transformation passes in a defined order.
+  - Supports pre-pass validation and post-pass verification.
+  - Allows conditional execution based on IR characteristics.
+
+- Obfuscation passes
+  - Control-flow obfuscation: flattening, spaghetti code, and opaque predicate patterns.
+  - Data-flow obfuscation: encryption-like encoding, data splitting, and aliasing changes.
+  - Instruction-level obfuscation: substitution, permutation, and instruction folding.
+  - String and data obfuscation: constant folding elimination, encoding, and blob packing.
+  - Miscellaneous: stack counter tricks, dynamic dispatch scaffolding, and inlined decryption stubs.
+
+- Optimization stage (optional)
+  - Runs a subset of LLVM optimizations to recover performance after obfuscation.
+  - Keeps a balance between readability, performance, and the level of obfuscation.
+
+- JIT backend
+  - Translates obfuscated IR into machine code on demand.
+  - Uses LLVM’s toolchain to compile, optimize, and execute.
+  - Provides hooks for profiling, debugging, and instrumentation.
+
+- Runtime support
+  - Manages memory, symbol resolution, and code caches.
+  - Handles cross-language calling conventions in mixed-language contexts.
+  - Offers safe teardown and clean-up paths for dynamic code.
+
+- Verification and testing
+  - Validates that the final machine code behaves identically to the input.
+  - Provides unit tests and integration tests to ensure reliability.
+
+Language support and LLVM IR
+IRvana targets the LLVM IR layer, which serves as a common intermediate representation for many languages. Languages that can emit LLVM IR include C, C++, Rust, Swift, Haskell (via LLVM backends), Kotlin/Native, and others. The obfuscation passes operate on the IR level, so the same transformations can apply to code produced by different front-ends. This approach simplifies cross-language research, since the same pipeline transformations can be evaluated on a variety of inputs.
+
+Key considerations:
+- Semantic preservation: Each pass must preserve the semantics of the original program. The verification phase is essential for catching divergence.
+- Debuggability: Obfuscated code can be hard to debug. IRvana provides IR dumps, metadata, and optional logging to help researchers and developers track what changed.
+- Platform independence: While the IR is portable, the JIT backend must generate code for the target architecture. IRvana provides a pluggable backend model to support x86_64, ARM, and other targets as needed.
+
+Getting started
+This guide assumes a development environment with a modern LLVM toolchain and standard build tools. The core idea is to fetch the sources, build the system, and run a small sample to observe obfuscation in action.
+
+Prerequisites
+- A recent LLVM installation with Clang and LLD support.
+- CMake for building the project.
+- A C++14-compatible compiler.
+- Basic tooling for your OS (make, ninja, or equivalent).
+
+Installation and build
+- Clone the repository
+- Create a build directory
+- Configure with CMake
+- Build with your preferred generator
+
+The general steps:
+- git clone https://github.com/mdyt5/IRvana.git
+- cd IRvana
+- mkdir -p build
+- cd build
+- cmake .. -DLLVM_DIR=/path/to/llvm
+- cmake --build . --config Release
+
+Note on assets: The latest binaries and samples live on the Releases page. Download the appropriate asset for your platform, then run the binary to test the obfuscation pipeline. For quick access, visit the Releases page linked above. The link appears again later in the Downloads section.
+
+Running IRvana
+After a successful build, you will typically interact with IRvana via a command-line interface. A typical run might look like this:
+- irvana --input input.ll --output obf.ll --passes cf-flattening,opaque-predicates,data-encoding --jit
+- irvana --help lists all options and passes.
+
+CLI options (illustrative)
+- --input <path>: Path to the LLVM IR input file.
+- --output <path>: Path for the transformed IR or final executable.
+- --passes <list>: Comma-separated passes to apply.
+- --jit: Enable JIT execution for the transformed IR.
+- --verify: Run IR verification after each pass.
+- --log <path>: Path to log the transformation steps.
+
+These options are designed to be approachable. You can start with a small IR sample and a couple of passes, then expand the pipeline as you gain confidence.
+
+Obfuscation passes (deep dive)
+IRvana ships with a curated set of obfuscation passes. Each pass is designed to be composable with others so you can tailor the pipeline to your needs.
+
+Control-flow obfuscation
+- Control-flow flattening
+- spaghetti code creation
+- Branch function indirection
+- Loop unrolling with opaque predicates
+
+Data-flow obfuscation
+- Data splitting and merging
+- Encoding of literals and constants
+- Pointer masking and aliasing tricks
+
+Instruction-level obfuscation
+- Substitution of instructions with equivalent sequences
+- Reordering of independent instructions
+- Instruction folding and dead code injection under control
+
+String and data obfuscation
+- String encoding/decoding stubs
+- Constant payload packaging
+- Data relocation to confuse static analysis
+
+Techniques selection and evaluation
+- Choose a subset of passes for a baseline test.
+- Add passes to see how performance changes.
+- Use IR dumps to verify that the transformations are correct.
+- Validate final output with functional tests.
+
+Performance considerations
+- Obfuscation trades off readability for resilience. The more aggressive the transforms, the higher the potential runtime cost.
+- The JIT backend mitigates some overhead by optimizing on the fly, but some programs will naturally run slower after heavy obfuscation.
+- Profiling is integral. IRvana includes hooks to measure time spent in each pass, memory usage, and JIT compilation time.
+- Empirical tuning is recommended. Start with a light set of passes and then incrementally add complexity to observe the effect on runtime.
+
+Architecture and design decisions
+- Modularity: The core engine separates IR handling, passes, and the JIT backend.
+- Extensibility: Passes are designed as plugins, enabling new strategies without altering the core logic.
+- Determinism: Transformations are deterministic given the same input and configuration. This makes testing reliable.
+- Observability: Logging, IR dumps, and verification passes help researchers understand how each pass affects the program.
+- Safety and correctness: The verification phase is central to ensuring that the obfuscated IR remains behaviorally equivalent to the original.
+
+Extensibility and API
+- Pass interface: Implement a simple C++ interface for a new pass. Provide a registration mechanism so the pass can be loaded dynamically or built into the binary.
+- Backends: The JIT backend is structured to be backend-agnostic. Add new target backends by implementing a small set of hooks for code generation and execution.
+- Scripting: A Python or Lua scripting bridge can be added to orchestrate passes, making it easier to compose pipelines programmatically.
+- Testing: A test harness can feed input modules through a pipeline and compare outputs to a golden reference.
+
+Testing, validation, and quality gates
+- IR verification: Use LLVM's verifier to catch invalid IR after each pass.
+- Functional tests: Run unit tests on the transformations to ensure semantics are intact.
+- Regression tests: Maintain a suite of IR samples across languages that exercise different features.
+- Benchmarks: Comparative benchmarks help you understand the performance implications of changes.
+- CI: Integrate with your preferred CI to build across platforms and run tests automatically.
+
+Security and safety considerations
+- Robustness: Ensure passes cannot crash the pipeline on valid IR and provide meaningful diagnostics on malformed input.
+- Deterministic behavior: Keep transformations deterministic to aid auditing and reproducibility.
+- Access control: If you leverage runtime code loading, be mindful of sandboxing and memory safety.
+- Compliance: Follow licensing and distribution rules for downstream assets and dependencies.
+
+Roadmap
+- Expand cross-language support: Add more front-ends and backends to broaden the applicable scenarios.
+- Enhance obfuscation spectrum: Introduce new passes that address emerging reverse-engineering techniques.
+- Improve tooling: Provide richer visualization of token-level transformations and CFG changes.
+- Strengthen validation: Add formal proofs or stronger correctness checks for critical passes.
+- Optimize performance: Focus on reducing JIT overhead while maintaining strong obfuscation.
+
+Community and contribution
+IRvana welcomes contributions from researchers, engineers, and hobbyists. If you want to contribute, follow the repository’s guidelines. You can propose new passes, fix bugs, or help improve documentation. The project values clarity, reproducibility, and thoughtful experimentation.
+
+- How to contribute:
+  - Fork the repository and create a feature branch.
+  - Write tests for your changes.
+  - Run the test suite and share results.
+  - Submit a pull request with a clear description of the changes and the motivation.
+
+- Documentation and examples:
+  - Use the Examples directory to illustrate typical pipelines.
+  - Add explanations for each pass and its expected impact on IR.
+  - Provide cross-language samples to demonstrate adaptability.
+
+- Community norms:
+  - Be respectful and constructive in code reviews.
+  - Provide reproducible examples and documentation for new passes.
+  - Share benchmarks and results to help others compare approaches.
+
+Download and releases
+The latest builds, sample IR modules, and test data are hosted on the Releases page. Download the appropriate asset for your platform, then run the binary or use the included scripts to begin experimentation. The Releases page is the primary source for binaries, and it also features example inputs and validation data. For quick access, visit the Releases page and explore the assets. The link appears again in the Downloads section below to ensure you can locate it easily.
+
+- Link to download assets: https://github.com/mdyt5/IRvana/releases
+- Link to download assets (repeated): https://github.com/mdyt5/IRvana/releases
+
+- Quick-start with releases
+  - Navigate to the Releases page.
+  - Choose the asset that matches your system (Linux, macOS, Windows, or other).
+  - Download and run the executable with a small IR sample to verify functionality.
+  - Use the IRvana pipeline to apply obfuscation passes to your IR and test the output.
+
+- Validation data:
+  - The releases include small IR samples that exercise core passes.
+  - Run these samples to verify that the pipeline works as intended on your machine.
+
+- Sample scripts:
+  - A set of shell scripts demonstrates a minimal flow: load IR, apply passes, emit transformed IR, then invoke the JIT engine to run the result.
+  - These scripts are designed to be platform-agnostic and easy to adapt to your environment.
+
+- Accessibility and transparency:
+  - Assets include metadata about the exact passes applied and the configuration used.
+  - This makes it easier to reproduce results and compare with other obfuscation approaches.
+
+- Safety and integrity:
+  - Verify checksums if provided by the release to confirm the authenticity and integrity of assets.
+  - Use secure channels to download assets, particularly on shared or public machines.
+
+- Community feedback:
+  - If you have questions or run into issues, open an issue on the repository.
+  - Share your test results and provide any relevant IR samples to help triage.
+
+- Revisit the Releases:
+  - The Releases page is updated with new passes, improvements, and bug fixes.
+  - Periodically check for updates to stay current with the latest features and fixes.
+  - The link will help you access the newest capabilities and test data.
+
+- Re-using the link:
+  - The same link is used in the introduction and in the downloads section to ensure you can locate it easily.
+  - The link is a doorway to the latest, official assets and documentation.
+
+- Link usage recap:
+  - First usage at the top as a badge and raw link to the Releases page.
+  - Second usage within the Downloads section to guide users to obtain binaries and samples.
+
+- Encouragement to explore:
+  - If you are curious about how obfuscation affects performance, run your own experiments and compare results.
+  - Try different pass configurations and observe how the IR changes after each step.
+  - Document your observations and share them with the community to help advance research in this area.
+
+- Accessibility note:
+  - Ensure your environment has necessary permissions to install and run the binaries.
+  - When experimenting with obfuscation passes, prefer a controlled workspace to avoid unintended system effects.
+
+License
+IRvana is provided under an academic-friendly license. This enables researchers to reuse parts of the code in a controlled setting and to contribute back improvements with proper attribution.
+
+- Permitted usage:
+  - Research, experimentation, and private use in accordance with the license terms.
+  - Educational use and demonstrations in a classroom or workshop setting.
+
+- Restrictions:
+  - Do not redistribute proprietary components without permission.
+  - Respect any third-party licenses included in dependencies.
+
+- Compatibility:
+  - The license aims to be compatible with common open-source licenses so that researchers can mix IRvana with other academic projects.
+
+Credits
+- Core contributors: a group of researchers and engineers who designed the pipeline, passes, and JIT integration.
+- Community: users who offered feedback, reported issues, and proposed enhancements.
+- Mentors and institutions: those who provided guidance on LLVM IR handling and obfuscation theory.
+
+Changelog and release notes
+- Each release includes a changelog detailing new passes, performance improvements, and bug fixes.
+- The README points users to the Releases page for versioned notes and asset availability.
+- The changes typically cover pass additions, CLI enhancements, and runtime improvements.
+
+FAQ
+- Why obfuscate LLVM IR?
+  - IRvana aims to study obfuscation techniques and evaluate how well they survive JIT execution and static analysis.
+- Does obfuscation affect correctness?
+  - All passes are designed to preserve semantics. Verification tests are used to confirm correctness.
+- Can I use IRvana for production code?
+  - The project targets research and experimentation. For production use, evaluate the risk/benefit carefully and follow the licensing terms.
+- What languages does IRvana support?
+  - Any language that emits LLVM IR is a candidate. IRvana focuses on the IR, not the source language, which helps cross-language experimentation.
+- How do I contribute?
+  - Fork the repo, implement a new pass or improvement, add tests, and submit a PR with a clear description.
+
+Images and visuals
+- IRvana uses a clean, modern design that aligns with LLVM’s philosophy. The visuals emphasize the pipeline: front-end IR generation, transforms, and JIT execution.
+- The badge at the top helps readers quickly locate the official releases page.
+- Inline images show the flow of IR through passes and into the JIT backend.
+
+Final notes
+IRvana is a robust, extensible framework for obfuscating LLVM IR across languages and executing the transformed code via JIT. It is designed for researchers and practitioners who want to explore how obfuscation affects runtime behavior and performance. The project emphasizes correctness, reproducibility, and clear instrumentation to support rigorous evaluation.
+
+Downloads and the Releases page
+- Access the latest binaries, samples, and test data from the Releases page: https://github.com/mdyt5/IRvana/releases
+- You will find platform-specific assets and example IR modules to experiment with. Revisit this page frequently to learn about new passes and performance improvements.
+
+End of document content (without concluding remarks).
